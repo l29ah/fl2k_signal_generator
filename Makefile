@@ -2,11 +2,11 @@ CFLAGS += -std=c11 -D_DEFAULT_SOURCE
 ifdef DEBUG
 	CFLAGS+=-ggdb3 -DDEBUG -Og -Wall -pedantic
 else
-	CFLAGS+=-DNDEBUG
+	CFLAGS+=-DNDEBUG -O2
 endif
 
-CFLAGS += $(shell pkg-config libosmo-fl2k --cflags)
-LDLIBS := $(shell pkg-config libosmo-fl2k --libs) -lm
+CFLAGS += $(shell pkg-config libosmo-fl2k ncurses --cflags)
+LDLIBS := $(shell pkg-config libosmo-fl2k ncurses --libs) -lm
 
 EXE = fl2k_signal_generator
 

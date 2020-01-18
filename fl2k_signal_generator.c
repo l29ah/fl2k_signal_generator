@@ -5,6 +5,7 @@
 #include <unistd.h>
 #include <osmo-fl2k.h>
 #include <math.h>
+#include <curses.h>
 
 enum waveform_e {
 	SAW_W,
@@ -19,6 +20,7 @@ static bool do_exit = false;
 static uint8_t *txbuf = NULL;
 static enum waveform_e waveform_setting = SINE_W;
 static double target_frequency = 1000000;
+static double period_samples;
 
 static uint8_t sine_table[10000];
 
@@ -27,6 +29,12 @@ static void generate_sine_table(uint8_t *buf)
 	for (unsigned i = 0; i < sizeof(sine_table); ++i) {
 		buf[i] = sinf((float)i / sizeof(sine_table) * M_PI * 2) * 0x7f + 0x80;
 	}
+}
+
+static void set_target_frequency(double frequency)
+{
+	target_frequency = frequency;
+	period_samples = (double)samp_rate / target_frequency;
 }
 
 static void fl2k_callback(fl2k_data_info_t *data_info)
@@ -40,11 +48,14 @@ static void fl2k_callback(fl2k_data_info_t *data_info)
 	data_info->sampletype_signed = 0;
 	data_info->r_buf = (char *)txbuf;
 
-	double period_samples = (double)samp_rate / target_frequency;
-
 	static uint64_t phase_shift = 0;
+	const double phase_shift_per_sample = 1.0 / period_samples;
+	double current_phase_shift = phase_shift % (uint32_t)period_samples / period_samples;	// 0.0 - 1.0
 	for (unsigned i = 0; i < FL2K_BUF_LEN; ++i) {
-		double current_phase_shift = (phase_shift + i) % (uint32_t)period_samples / period_samples;	// 0.0 - 1.0
+		current_phase_shift += phase_shift_per_sample;
+		if (current_phase_shift > 1) {
+			current_phase_shift -= 1;
+		}
 		switch (waveform_setting) {
 		case SAW_W:
 			txbuf[i] = current_phase_shift * 0xff;
@@ -83,6 +94,7 @@ int main(int argc, char *argv[])
 		goto out;
 	}
 
+	period_samples = (double)samp_rate / target_frequency;
 	int r = fl2k_start_tx(dev, fl2k_callback, NULL, 0);
 
 	/* Set the sample rate */
@@ -90,8 +102,48 @@ int main(int argc, char *argv[])
 	if (r < 0)
 		fprintf(stderr, "WARNING: Failed to set sample rate.\n");
 
-	while (!do_exit)
-		usleep(500000);
+	initscr();
+	cbreak();
+	keypad(stdscr, TRUE);
+	noecho();
+
+	move(1, 0);
+	printw("Controls:\nLeft-Right: adjust frequency by 1%\nr: round the frequency");
+
+	while (!do_exit) {
+		int ch = getch();
+		switch (ch) {
+		case KEY_LEFT:
+			set_target_frequency(target_frequency * 1.01);
+			break;
+		case KEY_RIGHT:
+			set_target_frequency(target_frequency * 0.99);
+			break;
+		case 'r':
+			;
+			uint32_t tf = target_frequency;
+			uint_fast8_t zeroes =
+			    (tf % 10	== 0) +
+			    (tf % 100	== 0) +
+			    (tf % 1000	== 0) +
+			    (tf % 10000	== 0) +
+			    (tf % 100000	== 0) +
+			    (tf % 1000000	== 0) +
+			    (tf % 10000000	== 0);
+			uint32_t round_to = pow(10, zeroes + 1);
+			tf = tf / round_to * round_to;
+			if (tf > 0) {
+				set_target_frequency(tf);
+			}
+			break;
+		}
+		move(0, 0);
+		clrtoeol();
+		printw("Target frequency: %lf", target_frequency);
+		refresh();
+	}
+
+	endwin();
 
 	fl2k_close(dev);
 
