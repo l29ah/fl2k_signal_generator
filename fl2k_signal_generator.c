@@ -110,7 +110,8 @@ int main(int argc, char *argv[])
 	move(1, 0);
 	printw("Controls:\n"
 	       "Set [f]requency by typing it and hitting Enter\n"
-	       "Left-Right: adjust frequency by 1%\n"
+	       "Up-Down: adjust frequency by 10%\n"
+	       "Right-Left: adjust frequency by 1%\n"
 	       "Setting waveform: s[q]uare, [s]ine, sa[w], [t]riangle\n"
 	       "r: round the frequency\n"
 	      );
@@ -127,11 +128,17 @@ int main(int argc, char *argv[])
 			}
 			noecho();
 			break;
-		case KEY_LEFT:
+		case KEY_RIGHT:
 			set_target_frequency(target_frequency * 1.01);
 			break;
-		case KEY_RIGHT:
+		case KEY_LEFT:
 			set_target_frequency(target_frequency * 0.99);
+			break;
+		case KEY_UP:
+			set_target_frequency(target_frequency * 1.1);
+			break;
+		case KEY_DOWN:
+			set_target_frequency(target_frequency * 0.9);
 			break;
 		case 'q':
 			waveform_setting = SQUARE_W;
