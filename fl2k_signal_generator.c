@@ -20,7 +20,16 @@ static uint8_t *txbuf = NULL;
 static enum waveform_e waveform_setting = SINE_W;
 static double target_frequency = 1000000;
 
-void fl2k_callback(fl2k_data_info_t *data_info)
+static uint8_t sine_table[10000];
+
+static void generate_sine_table(uint8_t *buf)
+{
+	for (unsigned i = 0; i < sizeof(sine_table); ++i) {
+		buf[i] = sinf((float)i / sizeof(sine_table) * M_PI * 2) * 0x7f + 0x80;
+	}
+}
+
+static void fl2k_callback(fl2k_data_info_t *data_info)
 {
 	if (data_info->device_error) {
 		fprintf(stderr, "Device error, exiting.\n");
@@ -41,8 +50,7 @@ void fl2k_callback(fl2k_data_info_t *data_info)
 			txbuf[i] = current_phase_shift * 0xff;
 			break;
 		case SINE_W:
-			// TODO: pre-generate the sine waveform
-			txbuf[i] = sinf(current_phase_shift * M_PI * 2) * 0x7f + 0x80;
+			txbuf[i] = sine_table[(unsigned)(current_phase_shift * sizeof(sine_table))];
 			break;
 		case SQUARE_W:
 			txbuf[i] = ((phase_shift + i) % (uint32_t)period_samples) / (uint32_t)(period_samples / 2) * 0xff;
@@ -61,6 +69,7 @@ void fl2k_callback(fl2k_data_info_t *data_info)
 
 int main(int argc, char *argv[])
 {
+	generate_sine_table(sine_table);
 	txbuf = malloc(FL2K_BUF_LEN);
 	if (!txbuf) {
 		fprintf(stderr, "malloc error!\n");
