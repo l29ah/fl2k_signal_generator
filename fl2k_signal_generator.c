@@ -64,7 +64,7 @@ static void fl2k_callback(fl2k_data_info_t *data_info)
 			txbuf[i] = sine_table[(unsigned)(current_phase_shift * sizeof(sine_table))];
 			break;
 		case SQUARE_W:
-			txbuf[i] = ((phase_shift + i) % (uint32_t)period_samples) / (uint32_t)(period_samples / 2) * 0xff;
+			txbuf[i] = (current_phase_shift >= 0.5) * 0xff;
 			break;
 		case TRIANGLE_W:
 			txbuf[i] = fabsf(1.0 - current_phase_shift * 2) * 0xff;
