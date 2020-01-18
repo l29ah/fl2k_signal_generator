@@ -10,6 +10,7 @@ enum waveform_e {
 	SAW_W,
 	SINE_W,
 	SQUARE_W,
+	TRIANGLE_W,
 };
 
 static fl2k_dev_t *dev = NULL;
@@ -45,6 +46,9 @@ void fl2k_callback(fl2k_data_info_t *data_info)
 			break;
 		case SQUARE_W:
 			txbuf[i] = ((phase_shift + i) % (uint32_t)period_samples) / (uint32_t)(period_samples / 2) * 0xff;
+			break;
+		case TRIANGLE_W:
+			txbuf[i] = fabsf(1.0 - current_phase_shift * 2) * 0xff;
 			break;
 		}
 	}
