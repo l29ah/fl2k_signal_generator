@@ -109,6 +109,7 @@ int main(int argc, char *argv[])
 
 	move(1, 0);
 	printw("Controls:\n"
+	       "Set [f]requency by typing it and hitting Enter\n"
 	       "Left-Right: adjust frequency by 1%\n"
 	       "Setting waveform: s[q]uare, [s]ine, sa[w], [t]riangle\n"
 	       "r: round the frequency\n"
@@ -117,6 +118,15 @@ int main(int argc, char *argv[])
 	while (!do_exit) {
 		int ch = getch();
 		switch (ch) {
+		case 'f':
+			echo();
+			double frequency;
+			scanw("%lf", &frequency);
+			if (frequency > 0 && frequency < 75000000) {
+				set_target_frequency(frequency);
+			}
+			noecho();
+			break;
 		case KEY_LEFT:
 			set_target_frequency(target_frequency * 1.01);
 			break;
