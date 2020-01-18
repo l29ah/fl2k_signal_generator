@@ -108,7 +108,11 @@ int main(int argc, char *argv[])
 	noecho();
 
 	move(1, 0);
-	printw("Controls:\nLeft-Right: adjust frequency by 1%\nr: round the frequency");
+	printw("Controls:\n"
+	       "Left-Right: adjust frequency by 1%\n"
+	       "Setting waveform: s[q]uare, [s]ine, sa[w], [t]riangle"
+	       "r: round the frequency\n"
+	      );
 
 	while (!do_exit) {
 		int ch = getch();
@@ -118,6 +122,18 @@ int main(int argc, char *argv[])
 			break;
 		case KEY_RIGHT:
 			set_target_frequency(target_frequency * 0.99);
+			break;
+		case 'q':
+			waveform_setting = SQUARE_W;
+			break;
+		case 's':
+			waveform_setting = SINE_W;
+			break;
+		case 'w':
+			waveform_setting = SAW_W;
+			break;
+		case 't':
+			waveform_setting = TRIANGLE_W;
 			break;
 		case 'r':
 			;
