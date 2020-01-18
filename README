@@ -1,0 +1,1 @@
+To build fl2k_signal_generator you need GNU make, pkg-config, ncurses and osmo-fl2k installed in your system. Just hit `make` to build it.
