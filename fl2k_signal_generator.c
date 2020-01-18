@@ -4,6 +4,7 @@
 #include <inttypes.h>
 #include <unistd.h>
 #include <osmo-fl2k.h>
+#include <math.h>
 
 enum waveform_e {
 	SAW_W,
@@ -15,7 +16,7 @@ static fl2k_dev_t *dev = NULL;
 static uint32_t samp_rate = 150000000;
 static bool do_exit = false;
 static uint8_t *txbuf = NULL;
-static enum waveform_e waveform_setting = SQUARE_W;
+static enum waveform_e waveform_setting = SINE_W;
 static double target_frequency = 1000000;
 
 void fl2k_callback(fl2k_data_info_t *data_info)
@@ -33,10 +34,14 @@ void fl2k_callback(fl2k_data_info_t *data_info)
 
 	static uint64_t phase_shift = 0;
 	for (unsigned i = 0; i < FL2K_BUF_LEN; ++i) {
+		double current_phase_shift = (phase_shift + i) % (uint32_t)period_samples / period_samples;	// 0.0 - 1.0
 		switch (waveform_setting) {
 		case SAW_W:
+			txbuf[i] = current_phase_shift * 0xff;
 			break;
 		case SINE_W:
+			// TODO: pre-generate the sine waveform
+			txbuf[i] = sinf(current_phase_shift * M_PI * 2) * 0x7f + 0x80;
 			break;
 		case SQUARE_W:
 			txbuf[i] = ((phase_shift + i) % (uint32_t)period_samples) / (uint32_t)(period_samples / 2) * 0xff;

@@ -6,7 +6,7 @@ else
 endif
 
 CFLAGS += $(shell pkg-config libosmo-fl2k --cflags)
-LDLIBS := $(shell pkg-config libosmo-fl2k --libs)
+LDLIBS := $(shell pkg-config libosmo-fl2k --libs) -lm
 
 EXE = fl2k_signal_generator
 
