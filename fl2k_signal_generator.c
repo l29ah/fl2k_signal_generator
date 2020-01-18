@@ -110,7 +110,7 @@ int main(int argc, char *argv[])
 	move(1, 0);
 	printw("Controls:\n"
 	       "Left-Right: adjust frequency by 1%\n"
-	       "Setting waveform: s[q]uare, [s]ine, sa[w], [t]riangle"
+	       "Setting waveform: s[q]uare, [s]ine, sa[w], [t]riangle\n"
 	       "r: round the frequency\n"
 	      );
 
