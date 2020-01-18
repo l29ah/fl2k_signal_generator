@@ -113,7 +113,7 @@ int main(int argc, char *argv[])
 	       "Up-Down: adjust frequency by 10%\n"
 	       "Right-Left: adjust frequency by 1%\n"
 	       "Setting waveform: s[q]uare, [s]ine, sa[w], [t]riangle\n"
-	       "r: round the frequency\n"
+	       "[r]ound the frequency\n"
 	      );
 
 	while (!do_exit) {
