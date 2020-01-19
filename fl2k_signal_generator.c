@@ -18,6 +18,8 @@ static fl2k_dev_t *dev = NULL;
 static uint32_t samp_rate = 150000000;
 static bool do_exit = false;
 static uint8_t *txbuf = NULL;
+static uint8_t *waveform_buf = NULL;
+static const size_t waveform_buf_len = FL2K_BUF_LEN * 10;
 static enum waveform_e waveform_setting = SINE_W;
 static double target_frequency = 1000000;
 static double period_samples;
@@ -31,10 +33,43 @@ static void generate_sine_table(uint8_t *buf)
 	}
 }
 
+static void regenerate_waveform()
+{
+	const double phase_shift_per_sample = 1.0 / period_samples;
+	double current_phase_shift = 0;
+	for (unsigned i = 0; i < waveform_buf_len; ++i) {
+		current_phase_shift += phase_shift_per_sample;
+		if (current_phase_shift > 1) {
+			current_phase_shift -= 1;
+		}
+		switch (waveform_setting) {
+		case SAW_W:
+			waveform_buf[i] = current_phase_shift * 0xff;
+			break;
+		case SINE_W:
+			waveform_buf[i] = sine_table[(unsigned)(current_phase_shift * sizeof(sine_table))];
+			break;
+		case SQUARE_W:
+			waveform_buf[i] = (current_phase_shift >= 0.5) * 0xff;
+			break;
+		case TRIANGLE_W:
+			waveform_buf[i] = fabsf(1.0 - current_phase_shift * 2) * 0xff;
+			break;
+		}
+	}
+}
+
 static void set_target_frequency(double frequency)
 {
 	target_frequency = frequency;
 	period_samples = (double)samp_rate / target_frequency;
+	regenerate_waveform();
+}
+
+static void set_waveform(enum waveform_e waveform)
+{
+	waveform_setting = waveform;
+	regenerate_waveform();
 }
 
 static void fl2k_callback(fl2k_data_info_t *data_info)
@@ -45,33 +80,41 @@ static void fl2k_callback(fl2k_data_info_t *data_info)
 		return;
 	}
 
-	data_info->sampletype_signed = 0;
-	data_info->r_buf = (char *)txbuf;
-
 	static uint64_t phase_shift = 0;
-	const double phase_shift_per_sample = 1.0 / period_samples;
-	double current_phase_shift = phase_shift % (uint32_t)period_samples / period_samples;	// 0.0 - 1.0
-	for (unsigned i = 0; i < FL2K_BUF_LEN; ++i) {
-		current_phase_shift += phase_shift_per_sample;
-		if (current_phase_shift > 1) {
-			current_phase_shift -= 1;
+	data_info->sampletype_signed = 0;
+
+	phase_shift %= (uint32_t)period_samples;
+	if (phase_shift < waveform_buf_len - FL2K_BUF_LEN) {
+		// nice, our signal is fast so we can use a pre-generated waveform
+		data_info->r_buf = (char *)waveform_buf + phase_shift;
+		phase_shift += FL2K_BUF_LEN;
+	} else {
+		// generate the waveform on the fly
+		const double phase_shift_per_sample = 1.0 / period_samples;
+		double current_phase_shift = phase_shift % (uint32_t)period_samples / period_samples;	// 0.0 - 1.0
+		for (unsigned i = 0; i < FL2K_BUF_LEN; ++i) {
+			current_phase_shift += phase_shift_per_sample;
+			if (current_phase_shift > 1) {
+				current_phase_shift -= 1;
+			}
+			switch (waveform_setting) {
+			case SAW_W:
+				txbuf[i] = current_phase_shift * 0xff;
+				break;
+			case SINE_W:
+				txbuf[i] = sine_table[(unsigned)(current_phase_shift * sizeof(sine_table))];
+				break;
+			case SQUARE_W:
+				txbuf[i] = (current_phase_shift >= 0.5) * 0xff;
+				break;
+			case TRIANGLE_W:
+				txbuf[i] = fabsf(1.0 - current_phase_shift * 2) * 0xff;
+				break;
+			}
 		}
-		switch (waveform_setting) {
-		case SAW_W:
-			txbuf[i] = current_phase_shift * 0xff;
-			break;
-		case SINE_W:
-			txbuf[i] = sine_table[(unsigned)(current_phase_shift * sizeof(sine_table))];
-			break;
-		case SQUARE_W:
-			txbuf[i] = (current_phase_shift >= 0.5) * 0xff;
-			break;
-		case TRIANGLE_W:
-			txbuf[i] = fabsf(1.0 - current_phase_shift * 2) * 0xff;
-			break;
-		}
+		data_info->r_buf = (char *)txbuf;
+		phase_shift += FL2K_BUF_LEN;
 	}
-	phase_shift += FL2K_BUF_LEN;
 
 	if (do_exit) {
 		fl2k_stop_tx(dev);
@@ -83,6 +126,11 @@ int main(int argc, char *argv[])
 	generate_sine_table(sine_table);
 	txbuf = malloc(FL2K_BUF_LEN);
 	if (!txbuf) {
+		fprintf(stderr, "malloc error!\n");
+		goto out;
+	}
+	waveform_buf = malloc(waveform_buf_len);
+	if (!waveform_buf) {
 		fprintf(stderr, "malloc error!\n");
 		goto out;
 	}
@@ -101,6 +149,9 @@ int main(int argc, char *argv[])
 	r = fl2k_set_sample_rate(dev, samp_rate);
 	if (r < 0)
 		fprintf(stderr, "WARNING: Failed to set sample rate.\n");
+
+	// initialize the waveform buffer
+	set_waveform(SINE_W);
 
 	initscr();
 	cbreak();
@@ -141,16 +192,16 @@ int main(int argc, char *argv[])
 			set_target_frequency(target_frequency * 0.9);
 			break;
 		case 'q':
-			waveform_setting = SQUARE_W;
+			set_waveform(SQUARE_W);
 			break;
 		case 's':
-			waveform_setting = SINE_W;
+			set_waveform(SINE_W);
 			break;
 		case 'w':
-			waveform_setting = SAW_W;
+			set_waveform(SAW_W);
 			break;
 		case 't':
-			waveform_setting = TRIANGLE_W;
+			set_waveform(TRIANGLE_W);
 			break;
 		case 'r':
 			;
