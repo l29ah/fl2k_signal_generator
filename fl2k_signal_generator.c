@@ -183,13 +183,13 @@ int main(int argc, char *argv[])
 			set_target_frequency(target_frequency * 1.01);
 			break;
 		case KEY_LEFT:
-			set_target_frequency(target_frequency * 0.99);
+			set_target_frequency(target_frequency / 1.01);
 			break;
 		case KEY_UP:
 			set_target_frequency(target_frequency * 1.1);
 			break;
 		case KEY_DOWN:
-			set_target_frequency(target_frequency * 0.9);
+			set_target_frequency(target_frequency / 1.1);
 			break;
 		case 'q':
 			set_waveform(SQUARE_W);
