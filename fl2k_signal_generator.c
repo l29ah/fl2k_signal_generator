@@ -123,7 +123,7 @@ int main(int argc, char *argv[])
 			echo();
 			double frequency;
 			scanw("%lf", &frequency);
-			if (frequency > 0 && frequency < 75000000) {
+			if (frequency > 0 && frequency <= 75000000) {
 				set_target_frequency(frequency);
 			}
 			noecho();
