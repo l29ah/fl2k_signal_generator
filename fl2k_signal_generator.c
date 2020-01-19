@@ -160,6 +160,7 @@ int main(int argc, char *argv[])
 	keypad(stdscr, TRUE);
 	noecho();
 
+	printw("Target frequency: %lfHz", target_frequency);
 	move(1, 0);
 	printw("Controls:\n"
 	       "Set [f]requency by typing it and hitting Enter\n"
@@ -173,6 +174,9 @@ int main(int argc, char *argv[])
 		int ch = getch();
 		switch (ch) {
 		case 'f':
+			move(0, 0);
+			clrtoeol();
+			printw("Enter the desired frequency, Hz: ");
 			echo();
 			double frequency;
 			scanw("%lf", &frequency);
@@ -223,7 +227,7 @@ int main(int argc, char *argv[])
 		}
 		move(0, 0);
 		clrtoeol();
-		printw("Target frequency: %lf", target_frequency);
+		printw("Target frequency: %lfHz", target_frequency);
 		refresh();
 	}
 
