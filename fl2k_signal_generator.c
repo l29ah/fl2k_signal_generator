@@ -61,9 +61,11 @@ static void regenerate_waveform()
 
 static void set_target_frequency(double frequency)
 {
-	target_frequency = frequency;
-	period_samples = (double)samp_rate / target_frequency;
-	regenerate_waveform();
+	if (frequency > 0 && frequency <= 75000000) {
+		target_frequency = frequency;
+		period_samples = (double)samp_rate / target_frequency;
+		regenerate_waveform();
+	}
 }
 
 static void set_waveform(enum waveform_e waveform)
@@ -174,9 +176,7 @@ int main(int argc, char *argv[])
 			echo();
 			double frequency;
 			scanw("%lf", &frequency);
-			if (frequency > 0 && frequency <= 75000000) {
-				set_target_frequency(frequency);
-			}
+			set_target_frequency(frequency);
 			noecho();
 			break;
 		case KEY_RIGHT:
