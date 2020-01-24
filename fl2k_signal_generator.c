@@ -153,6 +153,9 @@ int main(int argc, char *argv[])
 
 	period_samples = (double)samp_rate / target_frequency;
 	int r = fl2k_start_tx(dev, fl2k_callback, NULL, 0);
+	if (r < 0) {
+		fprintf(stderr, "Couldn't start the transmission.\n");
+	}
 
 	/* Set the sample rate */
 	r = fl2k_set_sample_rate(dev, samp_rate);
