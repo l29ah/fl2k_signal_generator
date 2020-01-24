@@ -9,6 +9,11 @@
 #include <error.h>
 #include <curses.h>
 
+#define TO_R(x) (((x) & 3) << 6)
+#define TO_G(x) (((x) & 7) << 3)
+#define TO_B(x) (((x) & 7) << 0)
+#define TO_RGB(r, g, b) (TO_R(r) | TO_G(g) | TO_B(b))
+
 enum waveform_e {
 	SAW_W,
 	SINE_W,
@@ -26,6 +31,7 @@ static enum waveform_e waveform_setting = SINE_W;
 static double target_frequency = 1000000;
 static double period_samples;
 static unsigned channel = offsetof(fl2k_data_info_t, r_buf);
+bool use_rgb332 = true;
 
 static uint8_t sine_table[10000];
 
@@ -49,18 +55,19 @@ static void regenerate_waveform()
 			endwin();
 			error(-1, 0, "Signal frequency (%lfHz) is too large for the current sample rate (%uSPS)!", target_frequency, samp_rate);
 		}
+#define FMT(x) use_rgb332 ? TO_RGB((x), (x), (x)) : (x)
 		switch (waveform_setting) {
 		case SAW_W:
-			waveform_buf[i] = current_phase_shift * 0xff;
+			waveform_buf[i] = FMT((uint8_t)(current_phase_shift * 0xff));
 			break;
 		case SINE_W:
-			waveform_buf[i] = sine_table[(unsigned)(current_phase_shift * sizeof(sine_table))];
+			waveform_buf[i] = FMT(sine_table[(unsigned)(current_phase_shift * sizeof(sine_table))]);
 			break;
 		case SQUARE_W:
-			waveform_buf[i] = (current_phase_shift >= 0.5) * 0xff;
+			waveform_buf[i] = FMT((current_phase_shift >= 0.5) * 0xff);
 			break;
 		case TRIANGLE_W:
-			waveform_buf[i] = fabsf(1.0 - current_phase_shift * 2) * 0xff;
+			waveform_buf[i] = FMT((uint8_t)(fabsf(1.0 - current_phase_shift * 2) * 0xff));
 			break;
 		}
 	}
@@ -90,18 +97,27 @@ static void fl2k_callback(fl2k_data_info_t *data_info)
 	}
 
 	static uint64_t phase_shift = 0;
+
+	// we can fit thrice as many samples in rgb332 mode
+	unsigned hw_buf_len = use_rgb332 ? FL2K_XFER_LEN : FL2K_BUF_LEN;
+
 	data_info->sampletype_signed = 0;
 
 	phase_shift %= (uint32_t)period_samples;
-	if (phase_shift < waveform_buf_len - FL2K_BUF_LEN) {
+	if (phase_shift < waveform_buf_len - hw_buf_len) {
 		// nice, our signal is fast so we can use a pre-generated waveform
-		*(char **)((void *)data_info + channel) = (char *)waveform_buf + phase_shift;
-		phase_shift += FL2K_BUF_LEN;
+		char *waveform_continued = (char *)waveform_buf + phase_shift;
+		if (use_rgb332) {
+			data_info->rgb332_buf = waveform_continued;
+		} else {
+			*(char **)((void *)data_info + channel) = waveform_continued;
+		}
+		phase_shift += hw_buf_len;
 	} else {
 		// generate the waveform on the fly
 		const double phase_shift_per_sample = 1.0 / period_samples;
 		double current_phase_shift = phase_shift % (uint32_t)period_samples / period_samples;	// 0.0 - 1.0
-		for (unsigned i = 0; i < FL2K_BUF_LEN; ++i) {
+		for (unsigned i = 0; i < hw_buf_len; ++i) {
 			current_phase_shift += phase_shift_per_sample;
 			if (current_phase_shift > 1) {
 				current_phase_shift -= 1;
@@ -121,8 +137,12 @@ static void fl2k_callback(fl2k_data_info_t *data_info)
 				break;
 			}
 		}
-		*(char **)((void *)data_info + channel) = (char *)txbuf;
-		phase_shift += FL2K_BUF_LEN;
+		if (use_rgb332) {
+			data_info->rgb332_buf = (char *)txbuf;
+		} else {
+			*(char **)((void *)data_info + channel) = (char *)txbuf;
+		}
+		phase_shift += hw_buf_len;
 	}
 
 	if (do_exit) {
@@ -133,7 +153,7 @@ static void fl2k_callback(fl2k_data_info_t *data_info)
 int main(int argc, char *argv[])
 {
 	generate_sine_table(sine_table);
-	txbuf = malloc(FL2K_BUF_LEN);
+	txbuf = malloc(use_rgb332 ? FL2K_XFER_LEN : FL2K_BUF_LEN);
 	if (!txbuf) {
 		fprintf(stderr, "malloc error!\n");
 		goto out;
@@ -153,6 +173,10 @@ int main(int argc, char *argv[])
 
 	period_samples = (double)samp_rate / target_frequency;
 	int r = fl2k_start_tx(dev, fl2k_callback, NULL, 0);
+
+	if (use_rgb332) {
+		fl2k_set_rgb332(dev);
+	}
 
 	/* Set the sample rate */
 	r = fl2k_set_sample_rate(dev, samp_rate);
