@@ -5,6 +5,7 @@
 #include <unistd.h>
 #include <osmo-fl2k.h>
 #include <math.h>
+#include <error.h>
 #include <curses.h>
 
 enum waveform_e {
@@ -41,6 +42,10 @@ static void regenerate_waveform()
 		current_phase_shift += phase_shift_per_sample;
 		if (current_phase_shift > 1) {
 			current_phase_shift -= 1;
+		}
+		if (current_phase_shift > 1) {
+			endwin();
+			error(-1, 0, "Signal frequency (%lfHz) is too large for the current sample rate (%uSPS)!", target_frequency, samp_rate);
 		}
 		switch (waveform_setting) {
 		case SAW_W:
