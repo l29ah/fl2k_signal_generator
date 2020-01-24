@@ -68,7 +68,7 @@ static void regenerate_waveform()
 
 static void set_target_frequency(double frequency)
 {
-	if (frequency > 0 && frequency <= 75000000) {
+	if (frequency > 0 && frequency <= (samp_rate / 2)) {
 		target_frequency = frequency;
 		period_samples = (double)samp_rate / target_frequency;
 		regenerate_waveform();
