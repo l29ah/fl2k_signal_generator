@@ -1,3 +1,4 @@
+#include <stddef.h>
 #include <stdio.h>
 #include <stdbool.h>
 #include <stdlib.h>
@@ -24,6 +25,7 @@ static const size_t waveform_buf_len = FL2K_BUF_LEN * 10;
 static enum waveform_e waveform_setting = SINE_W;
 static double target_frequency = 1000000;
 static double period_samples;
+static unsigned channel = offsetof(fl2k_data_info_t, r_buf);
 
 static uint8_t sine_table[10000];
 
@@ -93,7 +95,7 @@ static void fl2k_callback(fl2k_data_info_t *data_info)
 	phase_shift %= (uint32_t)period_samples;
 	if (phase_shift < waveform_buf_len - FL2K_BUF_LEN) {
 		// nice, our signal is fast so we can use a pre-generated waveform
-		data_info->r_buf = (char *)waveform_buf + phase_shift;
+		*(char **)((void *)data_info + channel) = (char *)waveform_buf + phase_shift;
 		phase_shift += FL2K_BUF_LEN;
 	} else {
 		// generate the waveform on the fly
@@ -119,7 +121,7 @@ static void fl2k_callback(fl2k_data_info_t *data_info)
 				break;
 			}
 		}
-		data_info->r_buf = (char *)txbuf;
+		*(char **)((void *)data_info + channel) = (char *)txbuf;
 		phase_shift += FL2K_BUF_LEN;
 	}
 
@@ -173,6 +175,7 @@ int main(int argc, char *argv[])
 	       "Right-Left: adjust frequency by 1%\n"
 	       "Setting waveform: s[q]uare, [s]ine, sa[w], [t]riangle\n"
 	       "[r]ound the frequency\n"
+	       "Choose the channel: [R]ed, [G]reen, [B]lue. Warning: inactive channel won't be updated.\n"
 	      );
 
 	while (!do_exit) {
@@ -228,6 +231,15 @@ int main(int argc, char *argv[])
 			if (tf > 0) {
 				set_target_frequency(tf);
 			}
+			break;
+		case 'R':
+			channel = offsetof(fl2k_data_info_t, r_buf);
+			break;
+		case 'G':
+			channel = offsetof(fl2k_data_info_t, g_buf);
+			break;
+		case 'B':
+			channel = offsetof(fl2k_data_info_t, b_buf);
 			break;
 		}
 		move(0, 0);
