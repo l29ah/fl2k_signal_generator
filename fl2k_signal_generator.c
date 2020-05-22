@@ -55,7 +55,7 @@ static void regenerate_waveform()
 			endwin();
 			error(-1, 0, "Signal frequency (%lfHz) is too large for the current sample rate (%uSPS)!", target_frequency, samp_rate);
 		}
-#define FMT(x) use_rgb332 ? TO_RGB((x), (x), (x)) : (x)
+#define FMT(x) use_rgb332 ? RGB332_TO_RGB((x), (x), (x)) : (x)
 		switch (waveform_setting) {
 		case SAW_W:
 			waveform_buf[i] = FMT((uint8_t)(current_phase_shift * 0xff));
@@ -108,7 +108,7 @@ static void fl2k_callback(fl2k_data_info_t *data_info)
 		// nice, our signal is fast so we can use a pre-generated waveform
 		char *waveform_continued = (char *)waveform_buf + phase_shift;
 		if (use_rgb332) {
-			data_info->rgb332_buf = waveform_continued;
+			data_info->raw_buf = waveform_continued;
 		} else {
 			*(char **)((void *)data_info + channel) = waveform_continued;
 		}
@@ -138,7 +138,7 @@ static void fl2k_callback(fl2k_data_info_t *data_info)
 			}
 		}
 		if (use_rgb332) {
-			data_info->rgb332_buf = (char *)txbuf;
+			data_info->raw_buf = (char *)txbuf;
 		} else {
 			*(char **)((void *)data_info + channel) = (char *)txbuf;
 		}
