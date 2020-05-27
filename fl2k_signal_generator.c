@@ -9,10 +9,11 @@
 #include <error.h>
 #include <curses.h>
 
-#define TO_R(x) (((x) & 3) << 6)
+#define TO_R(x) (((x) & 7) << 6)
 #define TO_G(x) (((x) & 7) << 3)
-#define TO_B(x) (((x) & 7) << 0)
+#define TO_B(x) (((x) & 3) << 0)
 #define TO_RGB(r, g, b) (TO_R(r) | TO_G(g) | TO_B(b))
+#define MAX(a, b) ((a) > (b) ? (a) : (b))
 
 enum waveform_e {
 	SAW_W,
@@ -55,19 +56,20 @@ static void regenerate_waveform()
 			endwin();
 			error(-1, 0, "Signal frequency (%lfHz) is too large for the current sample rate (%uSPS)!", target_frequency, samp_rate);
 		}
-#define FMT(x) use_rgb332 ? RGB332_TO_RGB((x), (x), (x)) : (x)
+#define FMT(x) (use_rgb332 ? TO_RGB((x), (x), (x)) : (x))
+		unsigned adjusted_index = use_rgb332 ? i ^ 4 : i;
 		switch (waveform_setting) {
 		case SAW_W:
-			waveform_buf[i] = FMT((uint8_t)(current_phase_shift * 0xff));
+			waveform_buf[adjusted_index] = FMT((uint8_t)(current_phase_shift * 0xff));
 			break;
 		case SINE_W:
-			waveform_buf[i] = FMT(sine_table[(unsigned)(current_phase_shift * sizeof(sine_table))]);
+			waveform_buf[adjusted_index] = FMT(sine_table[(unsigned)(current_phase_shift * sizeof(sine_table))]);
 			break;
 		case SQUARE_W:
-			waveform_buf[i] = FMT((current_phase_shift >= 0.5) * 0xff);
+			waveform_buf[adjusted_index] = FMT((current_phase_shift >= 0.5) * 0xff);
 			break;
 		case TRIANGLE_W:
-			waveform_buf[i] = FMT((uint8_t)(fabsf(1.0 - current_phase_shift * 2) * 0xff));
+			waveform_buf[adjusted_index] = FMT((uint8_t)(fabsf(1.0 - current_phase_shift * 2) * 0xff));
 			break;
 		}
 	}
@@ -153,7 +155,7 @@ static void fl2k_callback(fl2k_data_info_t *data_info)
 int main(int argc, char *argv[])
 {
 	generate_sine_table(sine_table);
-	txbuf = malloc(use_rgb332 ? FL2K_XFER_LEN : FL2K_BUF_LEN);
+	txbuf = malloc(MAX(FL2K_XFER_LEN, FL2K_BUF_LEN));
 	if (!txbuf) {
 		fprintf(stderr, "malloc error!\n");
 		goto out;
@@ -199,6 +201,7 @@ int main(int argc, char *argv[])
 	       "Right-Left: adjust frequency by 1%\n"
 	       "Setting waveform: s[q]uare, [s]ine, sa[w], [t]riangle\n"
 	       "[r]ound the frequency\n"
+	       "Toggle RGB[3]32 mode (higher frequency at the cost of lower resolution)\n"
 	       "Choose the channel: [R]ed, [G]reen, [B]lue. Warning: inactive channel won't be updated.\n"
 	      );
 
@@ -264,6 +267,13 @@ int main(int argc, char *argv[])
 			break;
 		case 'B':
 			channel = offsetof(fl2k_data_info_t, b_buf);
+			break;
+		case '3':
+			use_rgb332 = !use_rgb332;
+			// adjust the sampling rate
+			// TODO
+			// regenerate waveform
+			set_target_frequency(target_frequency);
 			break;
 		}
 		move(0, 0);
