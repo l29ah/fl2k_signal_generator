@@ -8,6 +8,7 @@
 #include <math.h>
 #include <error.h>
 #include <curses.h>
+#include <locale.h>
 
 enum waveform_e {
 	SAW_W,
@@ -132,6 +133,7 @@ static void fl2k_callback(fl2k_data_info_t *data_info)
 
 int main(int argc, char *argv[])
 {
+	setlocale(LC_NUMERIC, "en_US");	// force some grouping characters
 	generate_sine_table(sine_table);
 	txbuf = malloc(FL2K_BUF_LEN);
 	if (!txbuf) {
@@ -170,7 +172,7 @@ int main(int argc, char *argv[])
 	keypad(stdscr, TRUE);
 	noecho();
 
-	printw("Target frequency: %lfHz", target_frequency);
+	printw("Target frequency: %'lfHz", target_frequency);
 	move(1, 0);
 	printw("Controls:\n"
 	       "Set [f]requency by typing it and hitting Enter\n"
@@ -247,7 +249,7 @@ int main(int argc, char *argv[])
 		}
 		move(0, 0);
 		clrtoeol();
-		printw("Target frequency: %lfHz", target_frequency);
+		printw("Target frequency: %'lfHz", target_frequency);
 		refresh();
 	}
 
