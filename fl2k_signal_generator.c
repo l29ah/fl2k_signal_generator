@@ -18,7 +18,7 @@ enum waveform_e {
 };
 
 static fl2k_dev_t *dev = NULL;
-static uint32_t samp_rate = 150000000;
+static uint32_t samp_rate = 300000000;
 static bool do_exit = false;
 static uint8_t *txbuf = NULL;
 static uint8_t *waveform_buf = NULL;
@@ -153,8 +153,14 @@ int main(int argc, char *argv[])
 		goto out;
 	}
 
+	int r = fl2k_set_mode(dev, FL2K_MODE_SINGLECHAN);
+	if (r < 0) {
+		fprintf(stderr, "WARNING: Failed to set singlechannel mode\n");
+		return 0;
+	}
+
 	period_samples = (double)samp_rate / target_frequency;
-	int r = fl2k_start_tx(dev, fl2k_callback, NULL, 0);
+	r = fl2k_start_tx(dev, fl2k_callback, NULL, 0);
 	if (r < 0) {
 		fprintf(stderr, "Couldn't start the transmission.\n");
 	}
