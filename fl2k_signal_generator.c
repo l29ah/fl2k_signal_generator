@@ -176,8 +176,8 @@ int main(int argc, char *argv[])
 	move(1, 0);
 	printw("Controls:\n"
 	       "Set [f]requency by typing it and hitting Enter\n"
-	       "Up-Down: adjust frequency by 10%\n"
-	       "Right-Left: adjust frequency by 1%\n"
+	       "Up-Down: adjust frequency by 10%%\n"
+	       "Right-Left: adjust frequency by 1%%\n"
 	       "Setting waveform: s[q]uare, [s]ine, sa[w], [t]riangle\n"
 	       "[r]ound the frequency\n"
 	       "Choose the channel: [R]ed, [G]reen, [B]lue. Warning: inactive channel won't be updated.\n"
